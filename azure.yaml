@@ -1,0 +1,11 @@
+name: teams-ticket-bot
+metadata:
+  template: teams-ticket-bot
+services:
+  bot:
+    project: ./bot
+    language: python
+    host: containerapp
+    docker:
+      path: ./Dockerfile
+      remoteBuild: true

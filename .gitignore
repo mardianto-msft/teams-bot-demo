@@ -1,0 +1,8 @@
+.azure/
+.venv/
+__pycache__/
+*.pyc
+.env
+.conversations.json
+temps_sdk/
+appPackage/build/
