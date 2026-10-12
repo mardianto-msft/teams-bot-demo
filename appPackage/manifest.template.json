@@ -1,7 +1,7 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
   "manifestVersion": "1.17",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "id": "${BOT_ID}",
   "developer": {
     "name": "Teams Ticket Bot",
@@ -11,8 +11,8 @@
   },
   "name": { "short": "GitHub Ticket Bot", "full": "GitHub Ticket Notification Bot" },
   "description": {
-    "short": "Posts GitHub issue activity to Teams.",
-    "full": "Receives GitHub issue webhooks and posts an Adaptive Card to Teams whenever an issue is opened, updated, closed or reopened."
+    "short": "Posts GitHub issue and comment activity to Teams.",
+    "full": "Receives GitHub issue webhooks and posts an Adaptive Card to Teams whenever an issue is opened, updated, closed or reopened, or when a new comment is added."
   },
   "icons": { "color": "color.png", "outline": "outline.png" },
   "accentColor": "#24292F",
