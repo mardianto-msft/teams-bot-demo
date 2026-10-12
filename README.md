@@ -52,3 +52,49 @@ scripts/build-app-package.sh
 cd bot && python -m venv .venv && . .venv/bin/activate && pip install -e .
 GITHUB_WEBHOOK_SECRET=dev python src/main.py
 ```
+
+## Appendix: Estimated monthly cost
+
+Estimate for the deployed configuration in **East US 2**: one Container App (0.5 vCPU, 1 GiB, always on with 1 replica) and a low event volume (a few hundred GitHub events a month). Prices are pay-as-you-go list prices in USD from the [Azure Retail Prices API](https://learn.microsoft.com/en-us/rest/api/cost-management/retail-prices/azure-retail-prices), checked on 2026-10-12. A month is 730 hours (2,628,000 seconds). Taxes, discounts and agreements are not included. Prices change, so confirm with the [Azure pricing calculator](https://azure.microsoft.com/en-us/pricing/calculator/).
+
+| Service | How it's billed | Calculation | Est. / month |
+|---------|-----------------|-------------|-------------:|
+| **Container Apps** (Consumption) | Per-second vCPU and memory. A replica that is up but not handling requests is billed at the lower *idle* rate. First 180,000 vCPU-s and 360,000 GiB-s per subscription are free. | vCPU: (0.5 × 2,628,000 − 180,000) s × $0.000003 = $3.40<br>Memory: (1 × 2,628,000 − 360,000) GiB-s × $0.000003 = $6.80<br>Active time (a few seconds per event) ≈ $0.01 | **≈ $10.20** |
+| Container Apps requests | $0.40 per million; first 2 million free | A few hundred requests | **$0.00** |
+| **Azure Bot Service** (F0 tier) | Free tier. Teams is a standard channel, which is not metered. | n/a | **$0.00** |
+| **Private endpoints** (Key Vault, Blob Storage) | $0.01 per endpoint-hour, plus $0.01 per GB of data processed | 2 × 730 h × $0.01 = $14.60; data is a few KB | **$14.60** |
+| **Azure Container Registry** (Basic) | $0.1666 per day, includes 10 GiB storage | 30.4 days × $0.1666; image is ~150 MB | **≈ $5.07** |
+| **Private DNS zones** (2) | $0.50 per zone per month; $0.40 per million queries | 2 × $0.50; negligible queries | **$1.00** |
+| **Key Vault** (Standard) | $0.03 per 10,000 operations | The secret is read only when the app starts | **< $0.01** |
+| **Blob Storage** (Hot LRS) | $0.0184 per GB-month, plus per-operation fees | One small JSON file | **< $0.01** |
+| **Log Analytics** | Ingestion at $2.76 per GB after the free monthly allowance (5 GB per billing account); 31-day retention included | Container logs, well under 1 GB | **$0.00** |
+| Managed identity, VNet, Container Apps environment | No charge | The environment has only a Consumption profile, so no Dedicated plan management fee applies | **$0.00** |
+| | | **Total** | **≈ $31** |
+
+If the free grants are already used up by other apps in the subscription, Container Apps costs about $11.80 instead of $10.20 and the total is about **$32.50**.
+
+**Where the money goes:** the two private endpoints are about 47% of the bill and the always-on replica about 33%.
+
+**Ways to lower it**
+- **Scale to zero** (`minReplicas: 0` in `infra/resources.bicep`) brings Container Apps to roughly $0, because normal use fits in the free grant. The trade-off is a cold start on the first event after idle. GitHub waits only 10 seconds for a webhook response, so a slow start could show as a failed delivery.
+- **Remove the private endpoints** if your subscription policy allows public access to Key Vault and Storage. That saves $14.60 but loses the private networking.
+
+**Check your real bill:** Cost Management in the Azure portal, filtered to resource group `rg-teams-bot-eus2`, shows actual charges. It's the best way to confirm assumptions like the free grant and no Dedicated plan fee.
+
+### References
+
+- [Pricing - Azure AI Bot Service | Microsoft Azure](https://azure.microsoft.com/en-us/pricing/details/bot-services/)
+- [Pricing - Azure Container Apps | Microsoft Azure](https://azure.microsoft.com/en-us/pricing/details/container-apps/)
+- [Billing in Azure Container Apps | Microsoft Learn](https://learn.microsoft.com/en-us/azure/container-apps/billing)
+- [Compute and billing structures in Azure Container Apps | Microsoft Learn](https://learn.microsoft.com/en-us/azure/container-apps/plans)
+- [Set scaling rules in Azure Container Apps | Microsoft Learn](https://learn.microsoft.com/en-us/azure/container-apps/scale-app)
+- [Pricing - Container Registry | Microsoft Azure](https://azure.microsoft.com/en-us/pricing/details/container-registry/)
+- [Pricing - Key Vault | Microsoft Azure](https://azure.microsoft.com/en-us/pricing/details/key-vault/)
+- [Pricing - Blob Storage | Microsoft Azure](https://azure.microsoft.com/en-us/pricing/details/storage/blobs/)
+- [Pricing - Azure Private Link | Microsoft Azure](https://azure.microsoft.com/en-us/pricing/details/private-link/)
+- [Pricing - Azure DNS | Microsoft Azure](https://azure.microsoft.com/en-us/pricing/details/dns/)
+- [Pricing - Virtual Network | Microsoft Azure](https://azure.microsoft.com/en-us/pricing/details/virtual-network/)
+- [Pricing - Azure Monitor | Microsoft Azure](https://azure.microsoft.com/en-us/pricing/details/monitor/)
+- [Azure Monitor Logs cost calculations and options | Microsoft Learn](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/cost-logs)
+- [Azure Retail Prices API | Microsoft Learn](https://learn.microsoft.com/en-us/rest/api/cost-management/retail-prices/azure-retail-prices)
+- [Azure pricing calculator | Microsoft Azure](https://azure.microsoft.com/en-us/pricing/calculator/)
