@@ -26,7 +26,14 @@ conversations: dict[str, str] = {}
 lock = asyncio.Lock()
 
 
+def is_channel(conversation_id: str) -> bool:
+    # Channel conversation ids end in @thread.tacv2; personal and group chats do not.
+    return conversation_id.split(";")[0].endswith("@thread.tacv2")
+
+
 async def remember(conversation_id: str, service_url: str | None) -> None:
+    if not is_channel(conversation_id):
+        return
     async with lock:
         if conversations.get(conversation_id) != (service_url or ""):
             conversations[conversation_id] = service_url or ""
@@ -35,6 +42,8 @@ async def remember(conversation_id: str, service_url: str | None) -> None:
 
 @app.on_install_add
 async def on_install(ctx: ActivityContext[InstalledActivity]) -> None:
+    if not is_channel(ctx.activity.conversation.id):
+        return
     await remember(ctx.activity.conversation.id, ctx.activity.service_url)
     await ctx.send("Hi! I'll post GitHub issue notifications in this conversation.")
 
@@ -42,6 +51,9 @@ async def on_install(ctx: ActivityContext[InstalledActivity]) -> None:
 @app.on_message
 async def on_message(ctx: ActivityContext[MessageActivity]) -> None:
     # Mentioning the bot in a channel (re)registers it for notifications.
+    if not is_channel(ctx.activity.conversation.id):
+        await ctx.send("I only post notifications in team channels. Add me to a channel to get started.")
+        return
     await remember(ctx.activity.conversation.id, ctx.activity.service_url)
     await ctx.send("Notifications for GitHub issues will be posted here.")
 
@@ -103,7 +115,7 @@ async def github_webhook(request: Request) -> dict[str, object]:
 
 
 async def serve() -> None:
-    conversations.update(await store.load())
+    conversations.update({k: v for k, v in (await store.load()).items() if is_channel(k)})
     await app.initialize()
     port = int(os.getenv("PORT", "3978"))
     await uvicorn.Server(uvicorn.Config(server, host="0.0.0.0", port=port)).serve()
