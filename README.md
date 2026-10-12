@@ -75,10 +75,6 @@ If the free grants are already used up by other apps in the subscription, Contai
 
 **Where the money goes:** the two private endpoints are about 47% of the bill and the always-on replica about 33%.
 
-**Ways to lower it**
-- **Scale to zero** (`minReplicas: 0` in `infra/resources.bicep`) brings Container Apps to roughly $0, because normal use fits in the free grant. The trade-off is a cold start on the first event after idle. GitHub waits only 10 seconds for a webhook response, so a slow start could show as a failed delivery.
-- **Remove the private endpoints** if your subscription policy allows public access to Key Vault and Storage. That saves $14.60 but loses the private networking.
-
 **Check your real bill:** Cost Management in the Azure portal, filtered to resource group `rg-teams-bot-eus2`, shows actual charges. It's the best way to confirm assumptions like the free grant and no Dedicated plan fee.
 
 ### References
