@@ -9,6 +9,7 @@ GitHub issues webhook ──► Azure Container Apps (FastAPI + Teams SDK for Py
 - **Auth, no secrets:** a single user-assigned managed identity is the Azure Bot identity (`UserAssignedMSI`), pulls from ACR, reads Key Vault and writes Blob Storage.
 - **Key Vault** holds the GitHub webhook secret; the Container App reads it through the managed identity.
 - **Blob Storage** (identity-only access) persists the Teams conversation(s) that receive notifications.
+- Key Vault and Storage have public access disabled; the Container Apps environment is VNet-integrated and reaches them via private endpoints.
 - The card shows title, description, status/labels/assignees and an **Open issue on GitHub** button.
 
 ## Layout
