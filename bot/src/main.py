@@ -10,7 +10,7 @@ from fastapi import FastAPI, HTTPException, Request
 from microsoft_teams.api import InstalledActivity, MessageActivity, MessageActivityInput
 from microsoft_teams.apps import ActivityContext, App, FastAPIAdapter
 
-from cards import build_issue_card
+from cards import build_comment_card, build_issue_card
 from store import create_store
 
 load_dotenv()
@@ -83,20 +83,22 @@ async def github_webhook(request: Request) -> dict[str, object]:
     event = request.headers.get("X-GitHub-Event")
     if event == "ping":
         return {"ok": True}
-    if event != "issues":
+    if event not in ("issues", "issue_comment"):
         return {"ok": True, "ignored": event}
 
     payload = await request.json()
     action = payload.get("action")
-    if action not in HANDLED_ACTIONS:
-        return {"ok": True, "ignored": action}
+    repo_name = payload["repository"]["full_name"]
 
-    card = build_issue_card(
-        action,
-        payload["issue"],
-        payload["repository"]["full_name"],
-        payload["sender"]["login"],
-    )
+    if event == "issue_comment":
+        # Only new comments on issues; pull request conversations are out of scope.
+        if action != "created" or "pull_request" in payload["issue"]:
+            return {"ok": True, "ignored": action}
+        card = build_comment_card(payload["comment"], payload["issue"], repo_name)
+    else:
+        if action not in HANDLED_ACTIONS:
+            return {"ok": True, "ignored": action}
+        card = build_issue_card(action, payload["issue"], repo_name, payload["sender"]["login"])
 
     async with lock:
         targets = dict(conversations)

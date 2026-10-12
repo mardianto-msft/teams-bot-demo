@@ -33,7 +33,7 @@ scripts/build-app-package.sh
 ```
 
 1. Sideload `appPackage/build/teams-app.zip` in Teams and add the app to the target team/channel.
-2. Add the GitHub webhook (`azd env get-value GITHUB_WEBHOOK_URL`): content type `application/json`, the same secret, event **Issues**.
+2. Add the GitHub webhook (`azd env get-value GITHUB_WEBHOOK_URL`): content type `application/json`, the same secret, events **Issues** and **Issue comments**.
 
 ## Run locally
 

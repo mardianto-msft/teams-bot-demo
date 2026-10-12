@@ -67,3 +67,39 @@ def build_issue_card(action: str, issue: dict[str, Any], repo_name: str, sender:
             ],
         }
     )
+
+
+def build_comment_card(comment: dict[str, Any], issue: dict[str, Any], repo_name: str) -> AdaptiveCard:
+    return AdaptiveCard.model_validate(
+        {
+            "type": "AdaptiveCard",
+            "version": "1.5",
+            "body": [
+                {
+                    "type": "TextBlock",
+                    "text": f"New comment · {repo_name}",
+                    "size": "Small",
+                    "weight": "Bolder",
+                    "color": "Accent",
+                },
+                {
+                    "type": "TextBlock",
+                    "text": f"#{issue['number']} {issue['title']}",
+                    "size": "Large",
+                    "weight": "Bolder",
+                    "wrap": True,
+                },
+                {"type": "TextBlock", "text": _truncate(comment.get("body")), "wrap": True},
+                {
+                    "type": "FactSet",
+                    "facts": [
+                        {"title": "Commented by", "value": comment["user"]["login"]},
+                        {"title": "Status", "value": issue.get("state", "open").capitalize()},
+                    ],
+                },
+            ],
+            "actions": [
+                {"type": "Action.OpenUrl", "title": "Open comment on GitHub", "url": comment["html_url"]},
+            ],
+        }
+    )
