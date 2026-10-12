@@ -63,7 +63,7 @@ Estimate for the deployed configuration in **East US 2**: one Container App (0.5
 | Container Apps requests | $0.40 per million; first 2 million free | A few hundred requests | **$0.00** |
 | **Azure Bot Service** (F0 tier) | Free tier. Teams is a standard channel, which is not metered. | n/a | **$0.00** |
 | **Private endpoints** (Key Vault, Blob Storage) | $0.01 per endpoint-hour, plus $0.01 per GB of data processed | 2 × 730 h × $0.01 = $14.60; data is a few KB | **$14.60** |
-| **Azure Container Registry** (Basic) | $0.1666 per day, includes 10 GiB storage | 30.4 days × $0.1666; image is ~150 MB | **≈ $5.07** |
+| **Azure Container Registry** (Basic) | $0.1666 per day, includes 10 GiB storage | 30.4 days × $0.1666; one small image, far below 10 GiB | **≈ $5.07** |
 | **Private DNS zones** (2) | $0.50 per zone per month; $0.40 per million queries | 2 × $0.50; negligible queries | **$1.00** |
 | **Key Vault** (Standard) | $0.03 per 10,000 operations | The secret is read only when the app starts | **< $0.01** |
 | **Blob Storage** (Hot LRS) | $0.0184 per GB-month, plus per-operation fees | One small JSON file | **< $0.01** |
