@@ -19,7 +19,7 @@ param deployerPrincipalId string = ''
 @description('Container image; the public quickstart image is used until `azd deploy` publishes the bot.')
 param botImageName string = ''
 
-var abbrs = { rg: 'rg-', id: 'id-', acr: 'cr', kv: 'kv-', st: 'st', log: 'log-', cae: 'cae-', ca: 'ca-', bot: 'bot-' }
+var abbrs = { rg: 'rg-', id: 'id-', acr: 'cr', kv: 'kv-', st: 'st', log: 'log-', cae: 'cae-', vnet: 'vnet-', ca: 'ca-', bot: 'bot-' }
 var token = toLower(uniqueString(subscription().id, environmentName, location))
 var tags = { 'azd-env-name': environmentName }
 

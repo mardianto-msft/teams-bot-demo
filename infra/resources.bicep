@@ -50,6 +50,8 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     enableRbacAuthorization: true
     enableSoftDelete: true
     softDeleteRetentionInDays: 7
+    publicNetworkAccess: 'Disabled'
+    networkAcls: { defaultAction: 'Deny', bypass: 'AzureServices' }
   }
 }
 
@@ -64,8 +66,82 @@ resource storage 'Microsoft.Storage/storageAccounts@2023-01-01' = {
     allowSharedKeyAccess: false
     minimumTlsVersion: 'TLS1_2'
     supportsHttpsTrafficOnly: true
+    publicNetworkAccess: 'Disabled'
+    networkAcls: { defaultAction: 'Deny', bypass: 'AzureServices' }
   }
 }
+
+// Key Vault and Storage are private-only (subscription policy disables public access), so the
+// Container Apps environment is VNet-integrated and reaches them through private endpoints.
+resource vnet 'Microsoft.Network/virtualNetworks@2023-09-01' = {
+  name: '${abbrs.vnet}${token}'
+  location: location
+  tags: tags
+  properties: {
+    addressSpace: { addressPrefixes: ['10.0.0.0/16'] }
+    subnets: [
+      {
+        name: 'aca'
+        properties: {
+          addressPrefix: '10.0.0.0/23'
+          delegations: [
+            { name: 'aca', properties: { serviceName: 'Microsoft.App/environments' } }
+          ]
+        }
+      }
+      {
+        name: 'private-endpoints'
+        properties: { addressPrefix: '10.0.2.0/24' }
+      }
+    ]
+  }
+}
+
+var privateEndpoints = [
+  { name: 'kv', resourceId: keyVault.id, groupId: 'vault', zone: 'privatelink.vaultcore.azure.net' }
+  { name: 'blob', resourceId: storage.id, groupId: 'blob', zone: 'privatelink.blob.${environment().suffixes.storage}' }
+]
+
+resource zones 'Microsoft.Network/privateDnsZones@2020-06-01' = [for pe in privateEndpoints: {
+  name: pe.zone
+  location: 'global'
+  tags: tags
+}]
+
+resource zoneLinks 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = [for (pe, i) in privateEndpoints: {
+  parent: zones[i]
+  name: 'link-${pe.name}'
+  location: 'global'
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: { id: vnet.id }
+  }
+}]
+
+resource endpoints 'Microsoft.Network/privateEndpoints@2023-09-01' = [for pe in privateEndpoints: {
+  name: 'pe-${pe.name}-${token}'
+  location: location
+  tags: tags
+  properties: {
+    subnet: { id: vnet.properties.subnets[1].id }
+    privateLinkServiceConnections: [
+      {
+        name: pe.name
+        properties: { privateLinkServiceId: pe.resourceId, groupIds: [pe.groupId] }
+      }
+    ]
+  }
+}]
+
+resource endpointDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-09-01' = [for (pe, i) in privateEndpoints: {
+  parent: endpoints[i]
+  name: 'default'
+  properties: {
+    privateDnsZoneConfigs: [
+      { name: pe.name, properties: { privateDnsZoneId: zones[i].id } }
+    ]
+  }
+}]
 
 resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01' = {
   parent: storage
@@ -125,11 +201,18 @@ resource deployerKvOfficer 'Microsoft.Authorization/roleAssignments@2022-04-01' 
   }
 }
 
-resource environment 'Microsoft.App/managedEnvironments@2024-03-01' = {
+resource acaEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: '${abbrs.cae}${token}'
   location: location
   tags: tags
   properties: {
+    workloadProfiles: [
+      { name: 'Consumption', workloadProfileType: 'Consumption' }
+    ]
+    vnetConfiguration: {
+      infrastructureSubnetId: vnet.properties.subnets[0].id
+      internal: false
+    }
     appLogsConfiguration: {
       destination: 'log-analytics'
       logAnalyticsConfiguration: {
@@ -149,7 +232,8 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
     userAssignedIdentities: { '${identity.id}': {} }
   }
   properties: {
-    managedEnvironmentId: environment.id
+    managedEnvironmentId: acaEnv.id
+    workloadProfileName: 'Consumption'
     configuration: {
       activeRevisionsMode: 'Single'
       ingress: {
@@ -193,7 +277,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
       scale: { minReplicas: 1, maxReplicas: 2 }
     }
   }
-  dependsOn: [acrPull, kvSecretsUser]
+  dependsOn: [acrPull, kvSecretsUser, endpointDns]
 }
 
 var messagingEndpoint = 'https://${app.properties.configuration.ingress.fqdn}/api/messages'

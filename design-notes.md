@@ -7,3 +7,4 @@ Design notes:
 - Use user-assigned managed identity to access between Azure resources, so no secrets are needed
 - The workflow: GitHub issue webhook -> Business Logic hosted in Azure Container Apps (using Teams SDK) -> send Adaptive Cards to MS Teams
 - Use Teams' Adaptive Card that shows the important information, including: title, description, and a button that opens the GitHub issue in a browser
+- Use AZD CLI deployment (Bicep) to deploy the Azure resources
